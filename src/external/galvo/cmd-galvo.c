@@ -25,6 +25,7 @@ static int do_galvo(int argc, char ** argv)
 	{
 		galvo_set_xy(ctx, i, i);
 		galvo_refresh(ctx);
+		mdelay(10);
 	}
 
 	galvo_free(ctx);
