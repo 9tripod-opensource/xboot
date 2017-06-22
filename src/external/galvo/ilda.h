@@ -6,21 +6,9 @@ extern "C" {
 #endif
 
 #include <xboot.h>
+#include <galvo.h>
 
-struct ilda_point_t {
-	float x, y, z;
-	unsigned char r, g, b;
-	int last;
-	int blank;
-};
-
-struct ilda_file_t {
-	int count;
-	struct ilda_point_t * points;
-};
-
-struct ilda_file_t * ilda_alloc(char * buf, int len);
-void ilda_free(struct ilda_file_t * ilda);
+void ilda_load_file(struct galvo_ctx_t * gctx, const char * file);
 
 #ifdef __cplusplus
 }
