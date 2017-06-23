@@ -6,9 +6,9 @@ extern "C" {
 #endif
 
 #include <xboot.h>
-#include <galvo.h>
+#include <scan-mirror.h>
 
-void ilda_load_file(struct galvo_ctx_t * gctx, const char * file);
+void ilda_load_file(const char * file, struct scan_mirror_t * mir);
 
 #ifdef __cplusplus
 }

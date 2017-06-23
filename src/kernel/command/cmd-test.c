@@ -3,6 +3,7 @@
  */
 
 #include <command/command.h>
+#include <ilda.h>
 
 static void usage(void)
 {
@@ -12,6 +13,14 @@ static void usage(void)
 
 static int do_test(int argc, char ** argv)
 {
+	struct scan_mirror_t * mir = scan_mirror_alloc("fb-sandbox.0");
+	char * filename = "/romdisk/TTStrip.ild";
+
+	if(argc > 1)
+		filename = argv[1];
+	ilda_load_file(filename, mir);
+	scan_mirror_free(mir);
+
 	return 0;
 }
 

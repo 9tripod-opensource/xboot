@@ -28,7 +28,7 @@ enum ilda_coord_format_t {
 
 struct ilda_ctx_t {
 	enum ilda_state_t state;
-	char buf[32];
+	uint8_t buf[32];
 	int index;
 	enum ilda_coord_format_t format;
 	int count;
@@ -37,14 +37,14 @@ struct ilda_ctx_t {
 };
 
 struct ilda_point_t {
-	float x, y, z;
-	float r, g, b;
+	int16_t x, y, z;
+	uint8_t r, g, b;
 	int index;
 	int last;
 	int blank;
 };
 
-static const unsigned char ilda_default_palette[256][3] = {
+static const uint8_t ilda_default_palette[256][3] = {
 	{ 0, 0, 0 },
 	{ 255, 255, 255 },
 	{ 255, 0, 0 },
@@ -303,229 +303,237 @@ static const unsigned char ilda_default_palette[256][3] = {
 	{ 0, 0, 0 }
 };
 
-static inline unsigned short value_of_2bytes(char * buf)
+static inline uint16_t value_of_2bytes(uint8_t * buf)
 {
-	return (unsigned short)((buf[0] << 8) | buf[1]);
+	return (uint16_t)((buf[0] << 8) | buf[1]);
 }
 
-static inline void ilda_push_byte(struct ilda_ctx_t * ictx, struct galvo_ctx_t * gctx, char byte)
+static inline void ilda_push_byte(struct ilda_ctx_t * ctx, struct scan_mirror_t * mir, char byte)
 {
 	struct ilda_point_t point;
 
-	switch(ictx->state)
+	switch(ctx->state)
 	{
 	case ILDA_STATE_MAGIC:
-		ictx->buf[ictx->index++] = byte;
-		if(ictx->index >= 4)
+		ctx->buf[ctx->index++] = byte;
+		if(ctx->index >= 4)
 		{
-			if(ictx->buf[0] == 'I' && ictx->buf[1] == 'L' && ictx->buf[2] == 'D' && ictx->buf[3] == 'A')
+			if(ctx->buf[0] == 'I' && ctx->buf[1] == 'L' && ctx->buf[2] == 'D' && ctx->buf[3] == 'A')
 			{
-				ictx->state = ILDA_STATE_RESERVED1;
-				ictx->index = 0;
+				ctx->state = ILDA_STATE_RESERVED1;
+				ctx->index = 0;
 			}
 			else
 			{
-				ictx->state = ILDA_STATE_MAGIC;
-				ictx->index = 0;
+				ctx->state = ILDA_STATE_MAGIC;
+				ctx->index = 0;
 			}
 		}
 		break;
 
 	case ILDA_STATE_RESERVED1:
-		ictx->buf[ictx->index++] = byte;
-		if(ictx->index >= 3)
+		ctx->buf[ctx->index++] = byte;
+		if(ctx->index >= 3)
 		{
-			ictx->state = ILDA_STATE_FORMAT;
-			ictx->index = 0;
+			ctx->state = ILDA_STATE_FORMAT;
+			ctx->index = 0;
 		}
 		break;
 
 	case ILDA_STATE_FORMAT:
-		ictx->format = (enum ilda_coord_format_t)byte;
-		ictx->state = ILDA_STATE_NAME;
-		ictx->index = 0;
+		ctx->format = (enum ilda_coord_format_t)byte;
+		ctx->state = ILDA_STATE_NAME;
+		ctx->index = 0;
 		break;
 
 	case ILDA_STATE_NAME:
-		ictx->buf[ictx->index++] = byte;
-		if(ictx->index >= 8)
+		ctx->buf[ctx->index++] = byte;
+		if(ctx->index >= 8)
 		{
-			ictx->state = ILDA_STATE_COMPANY;
-			ictx->index = 0;
+			ctx->state = ILDA_STATE_COMPANY;
+			ctx->index = 0;
 		}
 		break;
 
 	case ILDA_STATE_COMPANY:
-		ictx->buf[ictx->index++] = byte;
-		if(ictx->index >= 8)
+		ctx->buf[ctx->index++] = byte;
+		if(ctx->index >= 8)
 		{
-			ictx->state = ILDA_STATE_COUNT;
-			ictx->index = 0;
+			ctx->state = ILDA_STATE_COUNT;
+			ctx->index = 0;
 		}
 		break;
 
 	case ILDA_STATE_COUNT:
-		ictx->buf[ictx->index++] = byte;
-		if(ictx->index >= 2)
+		ctx->buf[ctx->index++] = byte;
+		if(ctx->index >= 2)
 		{
-			ictx->count = (int)(value_of_2bytes(&ictx->buf[0]));
-			ictx->state = ILDA_STATE_FRAME_NUM;
-			ictx->index = 0;
+			ctx->count = (int)(value_of_2bytes(&ctx->buf[0]));
+			ctx->state = ILDA_STATE_FRAME_NUM;
+			ctx->index = 0;
 		}
 		break;
 
 	case ILDA_STATE_FRAME_NUM:
-		ictx->buf[ictx->index++] = byte;
-		if(ictx->index >= 2)
+		ctx->buf[ctx->index++] = byte;
+		if(ctx->index >= 2)
 		{
-			ictx->fnum = (int)(value_of_2bytes(&ictx->buf[0]));
-			ictx->state = ILDA_STATE_FRAME_CNT;
-			ictx->index = 0;
+			ctx->fnum = (int)(value_of_2bytes(&ctx->buf[0]));
+			ctx->state = ILDA_STATE_FRAME_CNT;
+			ctx->index = 0;
 		}
 		break;
 
 	case ILDA_STATE_FRAME_CNT:
-		ictx->buf[ictx->index++] = byte;
-		if(ictx->index >= 2)
+		ctx->buf[ctx->index++] = byte;
+		if(ctx->index >= 2)
 		{
-			ictx->fcnt = (int)(value_of_2bytes(&ictx->buf[0]));
-			ictx->state = ILDA_STATE_SCANNER;
-			ictx->index = 0;
+			ctx->fcnt = (int)(value_of_2bytes(&ctx->buf[0]));
+			ctx->state = ILDA_STATE_SCANNER;
+			ctx->index = 0;
 		}
 		break;
 
 	case ILDA_STATE_SCANNER:
-		ictx->state = ILDA_STATE_RESERVED2;
-		ictx->index = 0;
+		ctx->state = ILDA_STATE_RESERVED2;
+		ctx->index = 0;
 		break;
 
 	case ILDA_STATE_RESERVED2:
-		if(ictx->count > 0)
+		if(ctx->count > 0)
 		{
-			ictx->state = ILDA_STATE_RECORD;
-			ictx->index = 0;
+			ctx->state = ILDA_STATE_RECORD;
+			ctx->index = 0;
 		}
 		else
 		{
-			ictx->state = ILDA_STATE_MAGIC;
-			ictx->index = 0;
+			ctx->state = ILDA_STATE_MAGIC;
+			ctx->index = 0;
 		}
+		scan_mirror_clear(mir);
 		break;
 
 	case ILDA_STATE_RECORD:
-		ictx->buf[ictx->index++] = byte;
-		switch(ictx->format)
+		ctx->buf[ctx->index++] = byte;
+		switch(ctx->format)
 		{
 		case ILDA_COORD_FORMAT_3D_INDEX:
-			if(ictx->index >= 8)
+			if(ctx->index >= 8)
 			{
-				point.x = (signed short)(value_of_2bytes(&ictx->buf[0])) / 32768.0f;
-				point.y = (signed short)(value_of_2bytes(&ictx->buf[2])) / 32768.0f;
-				point.z = (signed short)(value_of_2bytes(&ictx->buf[4])) / 32768.0f;
-				if(ictx->buf[6] && (1 << 7))
+				point.x = (int16_t)(value_of_2bytes(&ctx->buf[0]));
+				point.y = (int16_t)(value_of_2bytes(&ctx->buf[2]));
+				point.z = (int16_t)(value_of_2bytes(&ctx->buf[4]));
+				if(ctx->buf[6] && (1 << 7))
 					point.last = 1;
 				else
 					point.last = 0;
-				if(ictx->buf[6] && (1 << 6))
+				if(ctx->buf[6] && (1 << 6))
 					point.blank = 1;
 				else
 					point.blank = 0;
-				point.index = ictx->buf[7];
-				point.r = ilda_default_palette[point.index][0] / 255.f;
-				point.g = ilda_default_palette[point.index][1] / 255.f;
-				point.b = ilda_default_palette[point.index][2] / 255.f;
+				point.index = ctx->buf[7];
+				point.r = ilda_default_palette[point.index][0];
+				point.g = ilda_default_palette[point.index][1];
+				point.b = ilda_default_palette[point.index][2];
 
-				if(point.blank)
-					galvo_set_color(gctx, 0, 0, 0);
-				else
-					galvo_set_color(gctx, point.r * 0xffff, point.g * 0xffff, point.b * 0xffff);
-				point.x *= 1;
-				point.y *= 1;
-				galvo_set_xy(gctx, point.x * 320 + 320, point.y * 240 + 240);
-				galvo_refresh(gctx);
-				printf("[%d] %f %f %f, %d, %d, %d\r\n", ictx->format, point.x, point.y, point.z, point.index, point.last, point.blank);
+				// printf("[%d][%d %d %d], %d, %d, %d\r\n", ctx->format, point.x, point.y, point.z, point.index, point.last, point.blank);
+				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
+				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
+				scan_mirror_update(mir);
 
-				ictx->state = ILDA_STATE_RECORD;
-				ictx->index = 0;
-				ictx->count--;
+				ctx->state = ILDA_STATE_RECORD;
+				ctx->index = 0;
+				ctx->count--;
 			}
 			break;
 
 		case ILDA_COORD_FORMAT_2D_INDEX:
-			if(ictx->index >= 6)
+			if(ctx->index >= 6)
 			{
-				point.x = (signed short)(value_of_2bytes(&ictx->buf[0])) / 32768.0f;
-				point.y = (signed short)(value_of_2bytes(&ictx->buf[2])) / 32768.0f;
+				point.x = (int16_t)(value_of_2bytes(&ctx->buf[0]));
+				point.y = (int16_t)(value_of_2bytes(&ctx->buf[2]));
 				point.z = 0;
-				if(ictx->buf[4] && (1 << 7))
+				if(ctx->buf[4] && (1 << 7))
 					point.last = 1;
 				else
 					point.last = 0;
-				if(ictx->buf[4] && (1 << 6))
+				if(ctx->buf[4] && (1 << 6))
 					point.blank = 1;
 				else
 					point.blank = 0;
-				point.index = ictx->buf[5];
-				point.r = ilda_default_palette[point.index][0] / 255.f;
-				point.g = ilda_default_palette[point.index][1] / 255.f;
-				point.b = ilda_default_palette[point.index][2] / 255.f;
+				point.index = ctx->buf[5];
+				point.r = ilda_default_palette[point.index][0];
+				point.g = ilda_default_palette[point.index][1];
+				point.b = ilda_default_palette[point.index][2];
 
-				ictx->state = ILDA_STATE_RECORD;
-				ictx->index = 0;
-				ictx->count--;
+				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
+				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
+				scan_mirror_update(mir);
+
+				ctx->state = ILDA_STATE_RECORD;
+				ctx->index = 0;
+				ctx->count--;
 			}
 			break;
 
 		case ILDA_COORD_FORMAT_PALETTE_COLOR:
-			ictx->state = ILDA_STATE_MAGIC;
-			ictx->index = 0;
+			ctx->state = ILDA_STATE_MAGIC;
+			ctx->index = 0;
 			break;
 
 		case ILDA_COORD_FORMAT_3D_TRUE_COLOR:
-			if(ictx->index >= 10)
+			if(ctx->index >= 10)
 			{
-				point.x = (signed short)(value_of_2bytes(&ictx->buf[0])) / 32768.0f;
-				point.y = (signed short)(value_of_2bytes(&ictx->buf[2])) / 32768.0f;
-				point.z = (signed short)(value_of_2bytes(&ictx->buf[4])) / 32768.0f;
-				if(ictx->buf[6] && (1 << 7))
+				point.x = (int16_t)(value_of_2bytes(&ctx->buf[0]));
+				point.y = (int16_t)(value_of_2bytes(&ctx->buf[2]));
+				point.z = (int16_t)(value_of_2bytes(&ctx->buf[4]));
+				if(ctx->buf[6] && (1 << 7))
 					point.last = 1;
 				else
 					point.last = 0;
-				if(ictx->buf[6] && (1 << 6))
+				if(ctx->buf[6] && (1 << 6))
 					point.blank = 1;
 				else
 					point.blank = 0;
-				point.b = ictx->buf[7] / 255.f;
-				point.g = ictx->buf[8] / 255.f;
-				point.r = ictx->buf[9] / 255.f;
+				point.b = ctx->buf[7];
+				point.g = ctx->buf[8];
+				point.r = ctx->buf[9];
 
-				ictx->state = ILDA_STATE_RECORD;
-				ictx->index = 0;
-				ictx->count--;
+				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
+				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
+				scan_mirror_update(mir);
+
+				ctx->state = ILDA_STATE_RECORD;
+				ctx->index = 0;
+				ctx->count--;
 			}
 			break;
 
 		case ILDA_COORD_FORMAT_2D_TRUE_COLOR:
-			if(ictx->index >= 8)
+			if(ctx->index >= 8)
 			{
-				point.x = (signed short)(value_of_2bytes(&ictx->buf[0])) / 32768.0f;
-				point.y = (signed short)(value_of_2bytes(&ictx->buf[2])) / 32768.0f;
+				point.x = (int16_t)(value_of_2bytes(&ctx->buf[0]));
+				point.y = (int16_t)(value_of_2bytes(&ctx->buf[2]));
 				point.z = 0;
-				if(ictx->buf[4] && (1 << 7))
+				if(ctx->buf[4] && (1 << 7))
 					point.last = 1;
 				else
 					point.last = 0;
-				if(ictx->buf[4] && (1 << 6))
+				if(ctx->buf[4] && (1 << 6))
 					point.blank = 1;
 				else
 					point.blank = 0;
-				point.b = ictx->buf[5] / 255.f;
-				point.g = ictx->buf[6] / 255.f;
-				point.r = ictx->buf[7] / 255.f;
+				point.b = ctx->buf[5];
+				point.g = ctx->buf[6];
+				point.r = ctx->buf[7];
 
-				ictx->state = ILDA_STATE_RECORD;
-				ictx->index = 0;
-				ictx->count--;
+				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
+				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
+				scan_mirror_update(mir);
+
+				ctx->state = ILDA_STATE_RECORD;
+				ctx->index = 0;
+				ctx->count--;
 			}
 			break;
 
@@ -533,32 +541,32 @@ static inline void ilda_push_byte(struct ilda_ctx_t * ictx, struct galvo_ctx_t *
 			break;
 		}
 
-		if(ictx->count <= 0)
+		if(ctx->count <= 0)
 		{
-			ictx->state = ILDA_STATE_MAGIC;
-			ictx->index = 0;
+			ctx->state = ILDA_STATE_MAGIC;
+			ctx->index = 0;
 		}
 		break;
 
 	default:
-		ictx->state = ILDA_STATE_MAGIC;
-		ictx->index = 0;
+		ctx->state = ILDA_STATE_MAGIC;
+		ctx->index = 0;
 		break;
 	}
 }
 
-void ilda_load_file(struct galvo_ctx_t * gctx, const char * file)
+void ilda_load_file(const char * file, struct scan_mirror_t * mir)
 {
-	struct ilda_ctx_t ictx;
+	struct ilda_ctx_t ctx;
 	char buf[512];
 	int fd, n, i;
 
-	if(!gctx || !file)
+	if(!file || !mir)
 		return;
 
-	memset(&ictx, 0, sizeof(struct ilda_ctx_t));
-	ictx.state = ILDA_STATE_MAGIC;
-	ictx.index = 0;
+	memset(&ctx, 0, sizeof(struct ilda_ctx_t));
+	ctx.state = ILDA_STATE_MAGIC;
+	ctx.index = 0;
 
 	fd = open(file, O_RDONLY, (S_IRUSR|S_IRGRP|S_IROTH));
 	if(fd < 0)
@@ -568,7 +576,7 @@ void ilda_load_file(struct galvo_ctx_t * gctx, const char * file)
 	{
 		for(i = 0; i < n; i++)
 		{
-			ilda_push_byte(&ictx, gctx, buf[i]);
+			ilda_push_byte(&ctx, mir, buf[i]);
 		}
 	}
 
