@@ -14,11 +14,19 @@ static void usage(void)
 static int do_test(int argc, char ** argv)
 {
 	struct scan_mirror_t * mir = scan_mirror_alloc("fb-sandbox.0");
-	char * filename = "/romdisk/TTStrip.ild";
+	char * filename = "/romdisk/dolf.ild";
+	int count = 1;
+	int i;
 
 	if(argc > 1)
 		filename = argv[1];
-	ilda_load_file(filename, mir);
+	if(argc > 2)
+		count = strtoul(argv[2], NULL, 0);
+
+	for(i = 0; i < count; i++)
+	{
+		ilda_load_file(filename, mir);
+	}
 	scan_mirror_free(mir);
 
 	return 0;

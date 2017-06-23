@@ -23,7 +23,7 @@ struct scan_mirror_t * scan_mirror_alloc(const char * name)
 	mir->g = 0;
 	mir->b = 0;
 	mir->blank = 0;
-	mir->pps = 1000;
+	mir->pps = 30000;
 
 	mir->fb = fb;
 	mir->pixels = fb->alone->pixels;
@@ -50,10 +50,35 @@ void scan_mirror_clear(struct scan_mirror_t * mir)
 	mir->fb->present(mir->fb, mir->fb->alone);
 }
 
+static void scan_mirror_update(struct scan_mirror_t * mir)
+{
+	static int count = 0;
+	u32_t * p;
+	u32_t c;
+	int x, y, w, h;
+
+	if(mir->blank)
+		c = 0xff000000;
+	else
+		c = (0xff << 24) | (mir->r << 16) | (mir->g << 8) | (mir->b << 0);
+
+	w = mir->width / 2;
+	h = mir->height / 2;
+	x = (float)mir->x / 32768.0f * w + w;
+	y = (float)(-mir->y) / 32768.0f * h + h;
+	p = (u32_t *)((u8_t *)mir->pixels + (y * mir->width + x) * 4);
+	*p = c;
+
+	if(count++ > 30)
+	{	count = 0;
+		mir->fb->present(mir->fb, mir->fb->alone);
+	}
+}
+
 void scan_mirror_set_pps(struct scan_mirror_t * mir, int pps)
 {
 	if(pps <= 0)
-		pps = 1000;
+		pps = 30000;
 	mir->pps = pps;
 }
 
@@ -69,29 +94,5 @@ void scan_mirror_goto_xyz(struct scan_mirror_t * mir, int16_t x, int16_t y, int1
 	mir->x = x;
 	mir->y = y;
 	mir->z = z;
-}
-
-void scan_mirror_update(struct scan_mirror_t * mir)
-{
-	static int count = 0;
-	u32_t * p;
-	u32_t c;
-	int x, y, w, h;
-
-	if(mir->blank)
-		c = 0xff000000;
-	else
-		c = (0xff << 24) | (mir->r << 16) | (mir->g << 8) | (mir->b << 0);
-
-	w = mir->width / 2;
-	h = mir->height / 2;
-	x = (float)mir->x / 32768.0f * w + w;
-	y = (float)mir->y / 32768.0f * h + h;
-	p = (u32_t *)((u8_t *)mir->pixels + (y * mir->width + x) * 4);
-	*p = c;
-
-	if(count++ > 30)
-	{	count = 0;
-		mir->fb->present(mir->fb, mir->fb->alone);
-	}
+	scan_mirror_update(mir);
 }

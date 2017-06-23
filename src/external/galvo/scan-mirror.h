@@ -26,7 +26,6 @@ void scan_mirror_clear(struct scan_mirror_t * mir);
 void scan_mirror_set_pps(struct scan_mirror_t * mir, int pps);
 void scan_mirror_set_color(struct scan_mirror_t * mir, uint8_t r, uint8_t g, uint8_t b, uint8_t blank);
 void scan_mirror_goto_xyz(struct scan_mirror_t * mir, int16_t x, int16_t y, int16_t z);
-void scan_mirror_update(struct scan_mirror_t * mir);
 
 #ifdef __cplusplus
 }

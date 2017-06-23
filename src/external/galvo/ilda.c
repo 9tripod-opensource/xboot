@@ -436,10 +436,8 @@ static inline void ilda_push_byte(struct ilda_ctx_t * ctx, struct scan_mirror_t 
 				point.g = ilda_default_palette[point.index][1];
 				point.b = ilda_default_palette[point.index][2];
 
-				// printf("[%d][%d %d %d], %d, %d, %d\r\n", ctx->format, point.x, point.y, point.z, point.index, point.last, point.blank);
 				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
 				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
-				scan_mirror_update(mir);
 
 				ctx->state = ILDA_STATE_RECORD;
 				ctx->index = 0;
@@ -468,7 +466,6 @@ static inline void ilda_push_byte(struct ilda_ctx_t * ctx, struct scan_mirror_t 
 
 				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
 				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
-				scan_mirror_update(mir);
 
 				ctx->state = ILDA_STATE_RECORD;
 				ctx->index = 0;
@@ -501,7 +498,6 @@ static inline void ilda_push_byte(struct ilda_ctx_t * ctx, struct scan_mirror_t 
 
 				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
 				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
-				scan_mirror_update(mir);
 
 				ctx->state = ILDA_STATE_RECORD;
 				ctx->index = 0;
@@ -529,7 +525,6 @@ static inline void ilda_push_byte(struct ilda_ctx_t * ctx, struct scan_mirror_t 
 
 				scan_mirror_set_color(mir, point.r, point.g, point.b, point.blank);
 				scan_mirror_goto_xyz(mir, point.x, point.y, point.z);
-				scan_mirror_update(mir);
 
 				ctx->state = ILDA_STATE_RECORD;
 				ctx->index = 0;
